@@ -6,15 +6,11 @@ import shutil
 import subprocess
 import pathlib
 import uuid
-
-from AtomicInteger import AtomicInt
+from atomic import AtomicLong
 from config import headers
 
-# Define the M3U8 URL and custom header
-m3u8_url = 'https://javday.space/videos/63728722e0e879f52274b36c/02ecf4/index.m3u8'
-
-def read_m3u8(m3u8_contents, headers = {}):
-  m3u8_contents = requests.get(m3u8_url, headers=headers)
+def read_m3u8(m3u8_url, headers = {}):
+  m3u8_contents = requests.get(m3u8_url, headers=headers).text
   video_urls = []
   for line in m3u8_contents.split('\n'):
     if line.startswith('#'):
@@ -29,7 +25,8 @@ def worker(array, start_idx, end_idx, dir, count, headers = {}):
     with open(f'{os.path.join(dir, f"{i}.ts")}', 'wb') as f:
       response = requests.get(video_url, headers=headers)
       f.write(response.content)
-    print(f'finish {count} of {len(array)}\n')
+    count += 1
+    print(f'finish {count.value} of {len(array)}')
 
 def download_ts_multi_thread(video_urls, headers, dir, num_threads = 10):
   if (len(video_urls) <= 0):
@@ -40,7 +37,7 @@ def download_ts_multi_thread(video_urls, headers, dir, num_threads = 10):
 
   # create threads
   threads = []
-  count = AtomicInt()
+  count = AtomicLong(0)
   for i in range(num_threads):
     start_idx = i * chunk_size
     end_idx = start_idx + chunk_size
@@ -65,6 +62,9 @@ def m3u8_to_mp4():
     tmpdir = f'{str(uuid.uuid4())[:8]}-tmp'
     output_file = 'output.mp4'
     os.mkdir(tmpdir)
+
+    m3u8_url = input("m3u8 url?") or "John"
+    output_file = (input("output mp4 (default: output.mp4)?") or "output.mp4").replace(' ', '\ ')
 
     # load m3u8 file
     video_urls = read_m3u8(m3u8_url, headers)
