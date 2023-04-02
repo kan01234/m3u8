@@ -1,14 +1,12 @@
 import requests
 import os
 import threading
-import tempfile
 import shutil
 import subprocess
-import pathlib
 import uuid
 from atomic import AtomicLong
-from config import headers
 from tqdm import tqdm
+import json
 
 def read_m3u8(m3u8_url, headers = {}):
   m3u8_contents = requests.get(m3u8_url, headers=headers).text
@@ -27,7 +25,7 @@ def worker(array, start_idx, end_idx, dir, count, process_bar, headers = {}):
       response = requests.get(video_url, headers=headers)
       f.write(response.content)
     count += 1
-    process_bar.update(count.value)
+    process_bar.update(1)
 
 def download_ts_multi_thread(video_urls, headers, dir, num_threads = 10):
   if (len(video_urls) <= 0):
@@ -70,6 +68,9 @@ def m3u8_to_mp4():
 
     m3u8_url = input("m3u8 url?") or "John"
     output_file = (input("output mp4 (default: output.mp4)?") or "output.mp4").replace(' ', '\ ')
+    headers_file = input("header file in json (default: header.json)") or "header.json"
+    with open(headers_file, 'r') as f:
+      headers = json.load(f)
 
     # load m3u8 file
     video_urls = read_m3u8(m3u8_url, headers)
