@@ -1,3 +1,6 @@
+import argparse
+import random
+from urllib.parse import urlparse
 import requests
 import os
 import threading
@@ -7,27 +10,67 @@ import uuid
 from atomic import AtomicLong
 from tqdm import tqdm
 import json
+import copy
 
-def read_m3u8(m3u8_url, headers = {}):
-  m3u8_contents = requests.get(m3u8_url, headers=headers).text
+user_agents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:54.0) Gecko/20100101 Firefox/54.0',
+    'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:54.0) Gecko/20100101 Firefox/54.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:54.0) Gecko/20100101 Firefox/54.0'
+]
+
+parser = argparse.ArgumentParser(description='Make a GET request to a URL.')
+parser.add_argument('url', type=str, help='the URL to make a request to')
+parser.add_argument('--headers', nargs='*', default=[], help='List of HTTP request headers')
+args = parser.parse_args()
+
+base_headers = {}
+for header in args.headers:
+    key, value = header.split(':', maxsplit=1)
+    base_headers[key.strip()] = value.strip()
+
+# Set up the headers
+def build_request_header(url):
+    headers = copy.copy(base_headers)
+    parsed_url = urlparse(url)
+    headers['Host'] = parsed_url.netloc
+    # headers['User-Agent'] = random.choice(user_agents)
+    # Set up the user agent
+    return headers
+
+def get_request(url):
+    response = requests.get(url, headers=build_request_header(url))
+    return response
+
+# -------------------------------------------------------------------------
+
+def read_m3u8(m3u8_url):
+  m3u8_contents = get_request(m3u8_url).text
+  print(m3u8_contents)
   video_urls = []
+  base_url = '/'.join(m3u8_url.split('/')[:-1])
   for line in m3u8_contents.split('\n'):
     if line.startswith('#'):
       continue
-    video_urls.append(line.strip())
+    if line.startswith('http'):
+      video_urls.append(line.strip())
+    else:
+      video_urls.append(f'{base_url}/{line.strip()}')
   return video_urls
 
-def worker(array, start_idx, end_idx, dir, count, process_bar, headers = {}):
+def worker(array, start_idx, end_idx, dir, count, process_bar):
   for i in range(start_idx, end_idx):
     video_url = array[i]
     # get ts files
     with open(f'{os.path.join(dir, f"{i}.ts")}', 'wb') as f:
-      response = requests.get(video_url, headers=headers)
+      response = get_request(video_url)
       f.write(response.content)
     count += 1
     process_bar.update(1)
 
-def download_ts_multi_thread(video_urls, headers, dir, num_threads = 10):
+def download_ts_multi_thread(video_urls, dir, num_threads = 10):
   if (len(video_urls) <= 0):
     return
 
@@ -43,7 +86,7 @@ def download_ts_multi_thread(video_urls, headers, dir, num_threads = 10):
     end_idx = start_idx + chunk_size
     if i == num_threads - 1:
         end_idx = len(video_urls)
-    t = threading.Thread(target=worker, args=(video_urls, start_idx, end_idx, dir, count, process_bar, headers))
+    t = threading.Thread(target=worker, args=(video_urls, start_idx, end_idx, dir, count, process_bar))
     threads.append(t)
     t.start()
 
@@ -66,22 +109,19 @@ def m3u8_to_mp4():
     output_file = 'output.mp4'
     os.mkdir(tmpdir)
 
-    m3u8_url = input("m3u8 url?") or "John"
-    output_file = (input("output mp4 (default: output.mp4)?") or "output.mp4").replace(' ', '\ ')
-    headers_file = input("header file in json (default: header.json)") or "header.json"
-    with open(headers_file, 'r') as f:
-      headers = json.load(f)
-
+    # read from args
+    url = args.url
+        
     # load m3u8 file
-    video_urls = read_m3u8(m3u8_url, headers)
+    video_urls = read_m3u8(url)
 
     # load ts files
-    ts_files = download_ts_multi_thread(video_urls, headers, tmpdir)
+    ts_files = download_ts_multi_thread(video_urls, tmpdir)
 
     # convert to mp4 with ffmpeg
     subprocess.call(f'ffmpeg -f concat -safe 0 -i {os.path.join(tmpdir, "input.txt")} -c copy {output_file}', shell=True)
+    # shutil.rmtree(tmpdir)
   finally:
-    shutil.rmtree(tmpdir)
     print()
 
 if __name__ == '__main__':
