@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='m3u8-to-mp4',
+    name='m3u8',
     version='1.0.0',
     description='A Python script to convert M3U8 files to MP4 format',
-    url='https://github.com/username/m3u8-to-mp4',
-    author='Your Name',
-    author_email='your.email@example.com',
+    url='https://github.com/kan01234/m3u8',
+    author='kan01234',
+    author_email='safghjkl@gmail.com',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'm3u8-to-mp4=m3u8_to_mp4:main',
+            'm3u8=m3u8:main',
         ],
     },
 )
