@@ -23,6 +23,7 @@ user_agents = [
 
 parser = argparse.ArgumentParser(description='Make a GET request to a URL.')
 parser.add_argument('url', type=str, help='the URL to make a request to')
+parser.add_argument('--m3u8', type=str, default='', help='location of m3u8 file')
 parser.add_argument('--headers', nargs='*', default=[], help='List of HTTP request headers')
 args = parser.parse_args()
 
@@ -46,8 +47,11 @@ def get_request(url):
 
 # -------------------------------------------------------------------------
 
-def read_m3u8(m3u8_url):
-  m3u8_contents = get_request(m3u8_url).text
+def read_m3u8(m3u8_url, m3u8_path):
+  if (m3u8_path):
+    m3u8_contents = read_local_m3u8(m3u8_path)
+  else:
+    m3u8_contents = read_m3u8_url(url)
   print(m3u8_contents)
   video_urls = []
   base_url = '/'.join(m3u8_url.split('/')[:-1])
@@ -60,6 +64,15 @@ def read_m3u8(m3u8_url):
       video_urls.append(f'{base_url}/{line.strip()}')
   return video_urls
 
+def read_m3u8_url(url):
+  m3u8_contents = get_request(m3u8_url).text
+  return m3u8_contents
+
+def read_local_m3u8(path):
+  with open(f'{path}', 'r') as f:
+    lines = f.read()
+    return lines
+
 def worker(array, start_idx, end_idx, dir, count, process_bar):
   for i in range(start_idx, end_idx):
     video_url = array[i]
@@ -70,7 +83,7 @@ def worker(array, start_idx, end_idx, dir, count, process_bar):
     count += 1
     process_bar.update(1)
 
-def download_ts_multi_thread(video_urls, dir, num_threads = 10):
+def download_ts_multi_thread(video_urls, dir, num_threads = 5):
   if (len(video_urls) <= 0):
     return
 
@@ -111,9 +124,9 @@ def m3u8_to_mp4():
 
     # read from args
     url = args.url
-        
+
     # load m3u8 file
-    video_urls = read_m3u8(url)
+    video_urls = read_m3u8(url, args.m3u8)
 
     # load ts files
     ts_files = download_ts_multi_thread(video_urls, tmpdir)
