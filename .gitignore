@@ -132,3 +132,5 @@ dmypy.json
 config.py
 *-tmp
 *.mp4
+*.ts
+*/*.ts
