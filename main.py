@@ -51,7 +51,7 @@ def read_m3u8(m3u8_url, m3u8_path):
   if (m3u8_path):
     m3u8_contents = read_local_m3u8(m3u8_path)
   else:
-    m3u8_contents = read_m3u8_url(url)
+    m3u8_contents = read_m3u8_url(m3u8_url)
   print(m3u8_contents)
   video_urls = []
   base_url = '/'.join(m3u8_url.split('/')[:-1])
@@ -64,7 +64,7 @@ def read_m3u8(m3u8_url, m3u8_path):
       video_urls.append(f'{base_url}/{line.strip()}')
   return video_urls
 
-def read_m3u8_url(url):
+def read_m3u8_url(m3u8_url):
   m3u8_contents = get_request(m3u8_url).text
   return m3u8_contents
 
