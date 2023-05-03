@@ -11,6 +11,8 @@ from atomic import AtomicLong
 from tqdm import tqdm
 import json
 import copy
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 user_agents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
@@ -24,6 +26,7 @@ user_agents = [
 parser = argparse.ArgumentParser(description='Make a GET request to a URL.')
 parser.add_argument('url', type=str, help='the URL to make a request to')
 parser.add_argument('--m3u8', type=str, default='', help='location of m3u8 file')
+parser.add_argument('--ssl', type=bool, default=True, help='ssl verfiy')
 parser.add_argument('--headers', nargs='*', default=[], help='List of HTTP request headers')
 args = parser.parse_args()
 
@@ -31,6 +34,18 @@ base_headers = {}
 for header in args.headers:
     key, value = header.split(':', maxsplit=1)
     base_headers[key.strip()] = value.strip()
+
+ssl_verify = args.ssl
+
+retry_strategy = Retry(
+  total=10,
+  backoff_factor=1
+)
+
+adapter = HTTPAdapter(max_retries=retry_strategy)
+http = requests.Session()
+http.mount("https://", adapter)
+http.mount("http://", adapter)
 
 # Set up the headers
 def build_request_header(url):
@@ -42,7 +57,7 @@ def build_request_header(url):
     return headers
 
 def get_request(url):
-    response = requests.get(url, headers=build_request_header(url))
+    response = http.get(url, headers=build_request_header(url), verify=ssl_verify)
     return response
 
 # -------------------------------------------------------------------------
