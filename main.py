@@ -56,7 +56,7 @@ def read_m3u8(m3u8_url, m3u8_path):
   video_urls = []
   base_url = '/'.join(m3u8_url.split('/')[:-1])
   for line in m3u8_contents.split('\n'):
-    if line.startswith('#'):
+    if not line or line.startswith('#'):
       continue
     if line.startswith('http'):
       video_urls.append(line.strip())
@@ -131,9 +131,9 @@ def m3u8_to_mp4():
     # load ts files
     ts_files = download_ts_multi_thread(video_urls, tmpdir)
 
-    # convert to mp4 with ffmpeg
+    # # convert to mp4 with ffmpeg
     subprocess.call(f'ffmpeg -f concat -safe 0 -i {os.path.join(tmpdir, "input.txt")} -c copy {output_file}', shell=True)
-    # shutil.rmtree(tmpdir)
+    shutil.rmtree(tmpdir)
   finally:
     print()
 
